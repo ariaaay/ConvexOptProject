@@ -8,11 +8,10 @@ The dimension of the brain data matrix is (5254, v) where 5254 is number of tria
 - Each trial is correponsding with a presentation of an image, which has an dominant object on it. The order of presentation is spcified in "image_category.p".
 - Word embedding vector are stored in "pix2vec_200.model". 200 is the dimension of the vectors. 
 You can load this file with Gensim package.
-<pre><code>
-	from gensim.models import KeyedVectors
-	wv_model = KeyedVectors.load("../outputs/pix2vec_200.model", mmap='r')
-	pix2vec = wv_model.vectors
-	wv_list = list(wv_model.vocab)
+<pre><code>from gensim.models import KeyedVectors
+wv_model = KeyedVectors.load("../outputs/pix2vec_200.model", mmap='r')
+pix2vec = wv_model.vectors
+wv_list = list(wv_model.vocab)
 </code></pre>
 In this case the pix2vec has a dimension of 3115 x 200. 3115 is the number of objects/images. wv_list is a list of words (length=3115), where each entry corresponds to a row in the pix2vec matrix. 
 
