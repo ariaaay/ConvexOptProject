@@ -1,6 +1,6 @@
-#Convex Optimization Project
+# Convex Optimization Project
 
-##Data folder
+## Data folder
 - Brain data are name as "(Subject No)_(Region of Interest)_(LH).npy"
 For example,
 "S1_PPA_LH.npy" means it is the brain data for subject 1, recording from PPA area, in the left hemisphere in the brain. 
