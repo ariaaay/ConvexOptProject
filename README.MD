@@ -1,9 +1,9 @@
 # Convex Optimization Project
 
 ## Data folder
-- Brain data are name as "(Subject No)_(Region of Interest)_(LH).npy"
+- Brain data are name as "(Subject No)\_(Region of Interest)\_(LH).npy"
 For example,
-"S1_PPA_LH.npy" means it is the brain data for subject 1, recording from PPA area, in the left hemisphere in the brain. 
+"S1\_PPA\_LH.npy" means it is the brain data for subject 1, recording from PPA area, in the left hemisphere in the brain. 
 The dimension of the brain data matrix is (5254, v) where 5254 is number of trials, and v is the number of dimension in this area of the brain. 
 - Each trial is correponsding with a presentation of an image, which has an dominant object on it. The order of presentation is spcified in "image_category.p".
 - Word embedding vector are stored in "pix2vec_200.model". 200 is the dimension of the vectors. 
