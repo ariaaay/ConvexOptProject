@@ -9,7 +9,7 @@ The dimension of the brain data matrix is (5254, v) where 5254 is number of tria
 - Word embedding vector are stored in "pix2vec_200.model". 200 is the dimension of the vectors. 
 You can load this file with Gensim package.
 <pre><code>from gensim.models import KeyedVectors
-wv_model = KeyedVectors.load("../outputs/pix2vec_200.model", mmap='r')
+wv_model = KeyedVectors.load("pix2vec_200.model", mmap='r')
 pix2vec = wv_model.vectors
 wv_list = list(wv_model.vocab)
 </code></pre>
