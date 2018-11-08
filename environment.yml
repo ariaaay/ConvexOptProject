@@ -1,0 +1,13 @@
+name: objEmbedding
+channels:
+  - anaconda
+  - conda-forge
+dependencies:
+  - python
+  - numpy
+  - matplotlib
+  - scikit-learn
+  - jupyter
+  - nltk
+  - gensim
+  - python-spams

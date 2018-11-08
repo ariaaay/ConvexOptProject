@@ -18,7 +18,12 @@ def main(brain_data, brain_labels, obj_vectors, obj_labels, K=200):
     X = np.asfortranarray(obj_vectors)
     params = {'K' : K, 'lambda1' : 0.025, 'numThreads' : 32,
               'batchsize' : 400, 'iter' : 50}
-    D, model = spams.trainDL(X, return_model=True, **params)
+
+    tic = time.time()
+    D = spams.trainDL_Memory(X, **params)
+    tac = time.time()
+    t = tac - tic
+    print('time of computation for Dictionary Learning: %f' %t)
     lasso_params = {'lambda1': 0.025, 'numThreads' : 32}
     alpha = spams.lasso(X, D=D, **lasso_params)
     reconstruction = D * alpha
