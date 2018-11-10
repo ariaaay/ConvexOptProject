@@ -4,6 +4,7 @@ import pickle
 import spams
 import sys
 from gensim.models import KeyedVectors
+from sklearn.decomposition import DictionaryLearning
 
 def test_2v2_accuracy():
     pass
@@ -38,6 +39,7 @@ def extract_common_objs(brain_data, brain_labels, obj_vectors, obj_labels):
     - Xlabels: labels corresponding to the rows in X.
     - Y: the brain data matrix of dimension w2-by-v. 
     - Ylabels: labels corresponding to the rows in Y.
+    - w: number of words that overlap
     """
     br_overlap_idx = []
     obj_overlap_idx = []
@@ -47,43 +49,90 @@ def extract_common_objs(brain_data, brain_labels, obj_vectors, obj_labels):
             if obj_lab == br_lab:
                 obj_overlap_idx.append(i)
                 br_overlap_idx.append(j)
+    assert(len(obj_overlap_idx) == len(br_overlap_idx))
+    w = len(obj_overlap_idx)
 
     br_nonoverlap_idx = np.setdiff1d(np.arange(len(brain_labels)), br_overlap_idx)
     obj_nonoverlap_idx = np.setdiff1d(np.arange(len(obj_labels)), obj_overlap_idx)
 
-    X = np.vstack((brain_data[br_overlap_idx,:], brain_data[br_nonoverlap_idx,:]))
-    Y = np.vstack((obj_vectors[obj_overlap_idx,:], obj_vectors[obj_nonoverlap_idx,:]))
+    X = np.vstack((obj_vectors[obj_overlap_idx,:], obj_vectors[obj_nonoverlap_idx,:]))
+    Y = np.vstack((brain_data[br_overlap_idx,:], brain_data[br_nonoverlap_idx,:]))
 
-    return X, Y
+    return X, Y, w
 
-def main(X, Y, K=200):
-    # TODO: Change the SPAMS settings to make sure it's being run with the 
-    #       constraints and penalties that are described in the paper.
+# def main(X, Y, w, K=100):
+#     # TODO: Change the SPAMS settings to make sure it's being run with the 
+#     #       constraints and penalties that are described in the paper.
+#     return
+#     #alternate optimization
+#     X = np.asfortranarray(X.T)
+#     Y = np.asfortranarray(Y.T)
 
-    # First, run a simple baseline.
-    # (1) Train a dictionary learning model just on the object embeddings
-    #     and measure 2v2 accuracy using an arbitrary brain data file.
+#     params = {'K' : K, 'lambda1' : 0.025, 'numThreads' : 32,'iter' : 1}
+#     lasso_params = {'lambda1': 0.025, 'numThreads' : 32}
 
-    #alternate optimization
-    X = np.asfortranarray(X)
-    params = {'K' : K, 'lambda1' : 0.025, 'numThreads' : 32,
-              'batchsize' : 400, 'iter' : 50}
 
-    tic = time.time()
-    D = spams.trainDL_Memory(X, **params)
-    tac = time.time()
-    t = tac - tic
-    print('time of computation for Dictionary Learning: %f' %t)
-    lasso_params = {'lambda1': 0.025, 'numThreads' : 32}
-    alpha = spams.lasso(X, D=D, **lasso_params)
-    reconstruction = D * alpha
-    xd = X - reconstruction
-    loss = np.mean(0.5 * (xd * xd).sum(axis=0) + params['lambda1'] * np.abs(alpha).sum(axis=0))
-    print('Loss: %f' % loss)
-    # Convert alpha back to dense.
-    alpha = alpha.toarray()
-    # Train a model XW = A using L2-regularized linear regression.
-    # Use trained W to compute 2v2 accuracy on a holdout set.
+#     D_X, model_X = spams.trainDL(X, return_model=True, batch=True, **params)
+#     # print(D_X.shape)
+#     # print(model_X['A'].shape)
+#     print(model_X['B'].shape)
+    
+#     alpha = spams.lasso(X, D=D_X, **lasso_params)
+#     print(alpha.shape)
+#     reconstruction_X = D_X * alpha
+#     xd = X - reconstruction_X
+#     loss_X = np.mean(0.5 * (xd * xd).sum(axis=0) + params['lambda1'] * np.abs(alpha).sum(axis=0))
+#     print('Loss of X: %f' % loss_X)
+
+#     # D_Y, model_Y = spams.trainDL(X, return_model=True, **params)
+
+#     # Convert alpha back to dense.
+#     alpha = alpha.toarray()
+#     # Train a model XW = A using L2-regularized linear regression.
+#     # Use trained W to compute 2v2 accuracy on a holdout set.
+
+def main(X, Y, w, K=100, lamb=0.025):
+    model_X, D_Y = None, None
+    params = {'n_components':K, 'alpha':lamb, 'max_iter': 1, 'n_jobs': -1, \
+    'positive_code':True, 'transform_algorithm':'lasso_lars'}
+    t = 0
+    while t < 3:
+        if model_X is None:
+            model_X = DictionaryLearning(**params)
+        else:
+            A_X[w,:] = A_Y[w,:]
+            model_X = DictionaryLearning(code_init=A_X, dict_init=D_X, **params)
+        
+        model_X.fit(X)
+        A_X = model_X.transform(X)
+        D_X = model_X.components_
+
+        reconstruction_X = A_X @ D_X
+        xd = X - reconstruction_X
+        loss_X = np.mean((xd**2).sum(axis=1) + lamb * np.abs(A_X).sum(axis=1))
+        print('Loss of X: %f' % loss_X)
+
+        #warm start alpha in model_Y
+        A_Y = np.zeros((Y.shape[0], K))
+        A_Y[w,:] = A_X[w,:]
+        if D_Y is None:
+            model_Y = DictionaryLearning(code_init=A_Y, **params)
+        else:
+            model_Y = DictionaryLearning(code_init=A_Y, dict_init=D_Y, **params)
+
+        model_Y.fit(Y)
+        A_Y = model_Y.transform(Y)
+        D_Y = model_Y.components_
+
+        reconstruction_Y = A_Y @ D_Y
+        yd = Y - reconstruction_Y
+        loss_Y = np.mean((yd**2).sum(axis=1) + lamb * np.abs(A_Y).sum(axis=1))
+        print('Loss of Y: %f' % loss_Y)
+
+        t+=1
+    
+    return D_X, D_Y, A_Y, A_X
+
 
 if __name__ == '__main__':
     try:
@@ -104,6 +153,7 @@ if __name__ == '__main__':
     obj_vectors = wv_model.vectors
     obj_labels = list(wv_model.vocab)
     brain_data_unique, brain_labels_unique = avg_repeated_brain_trials(brain_data, brain_labels)
-    X, Y = extract_common_objs(brain_data_unique, brain_labels_unique, obj_vectors, obj_labels)
+    X, Y, w = extract_common_objs(brain_data_unique, brain_labels_unique, obj_vectors, obj_labels)
 
-    main(X, Y)
+    D_X, D_Y, A_Y, A_X = main(X, Y, w)
+
