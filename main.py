@@ -5,9 +5,22 @@ import spams
 import sys
 from gensim.models import KeyedVectors
 from sklearn.decomposition import DictionaryLearning
+import matplotlib.pyplot as plt
 
 def test_2v2_accuracy():
     pass
+
+def plot_rdm(X, Y, w):
+    Xc = X[:w, :]
+    Yc = Y[:w, :]
+    plt.figure()
+    plt.subplot(121)
+    plt.imshow(np.corrcoef(Xc))
+    plt.colorbar()
+    plt.subplot(122)
+    plt.imshow(np.corrcoef(Yc))
+    plt.colorbar()
+    plt.show()
 
 def avg_repeated_brain_trials(brain_data, brain_labels):
     """
@@ -93,9 +106,11 @@ def extract_common_objs(brain_data, brain_labels, obj_vectors, obj_labels):
 
 def main(X, Y, w, K=100, lamb=0.025):
     model_X, D_Y = None, None
-    params = {'n_components':K, 'alpha':lamb, 'max_iter': 1, 'n_jobs': -1, \
+    params = {'n_components':K, 'alpha':lamb, 'max_iter': 10, 'n_jobs': -1, \
     'positive_code':True, 'transform_algorithm':'lasso_lars'}
     t = 0
+    loss_X_arr = []
+    loss_Y_arr = []
     while t < 3:
         if model_X is None:
             model_X = DictionaryLearning(**params)
@@ -110,6 +125,7 @@ def main(X, Y, w, K=100, lamb=0.025):
         reconstruction_X = A_X @ D_X
         xd = X - reconstruction_X
         loss_X = np.mean((xd**2).sum(axis=1) + lamb * np.abs(A_X).sum(axis=1))
+        loss_X_arr.append(loss_X)
         print('Loss of X: %f' % loss_X)
 
         #warm start alpha in model_Y
@@ -127,12 +143,18 @@ def main(X, Y, w, K=100, lamb=0.025):
         reconstruction_Y = A_Y @ D_Y
         yd = Y - reconstruction_Y
         loss_Y = np.mean((yd**2).sum(axis=1) + lamb * np.abs(A_Y).sum(axis=1))
+        loss_Y_arr.append(loss_Y)
         print('Loss of Y: %f' % loss_Y)
 
         t+=1
-    
-    return D_X, D_Y, A_Y, A_X
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(np.arange(t), loss_Y_arr)
+    ax2 = ax.twinx()
+    ax2.plot(np.arange(t), loss_X_arr)
+    plt.show()
 
+    return D_X, D_Y, A_Y, A_X
 
 if __name__ == '__main__':
     try:
@@ -154,6 +176,8 @@ if __name__ == '__main__':
     obj_labels = list(wv_model.vocab)
     brain_data_unique, brain_labels_unique = avg_repeated_brain_trials(brain_data, brain_labels)
     X, Y, w = extract_common_objs(brain_data_unique, brain_labels_unique, obj_vectors, obj_labels)
+    # print("Linear project residual is: " +str(linear_test(X, Y)))
 
-    D_X, D_Y, A_Y, A_X = main(X, Y, w)
+
+    # D_X, D_Y, A_Y, A_X = main(X, Y, w)
 
