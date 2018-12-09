@@ -17,6 +17,28 @@ def takeout_repeated_brain_trials(brain_data, brain_labels):
         brain_data_unique[j, :] = brain_data[label2trial[lab], :]
     return brain_data_unique, brain_labels_unique
 
+# def avg_repeated_brain_trials(brain_data, brain_labels):
+#     """
+#     Average the duplicated trials in the brain data
+#     """
+#     brain_labels_unique = []
+#     label2trial = dict()
+#     for i, l in enumerate(brain_labels):
+#         if l not in brain_labels_unique:
+#             brain_labels_unique.append(l)
+#             label2trial[l] = [i]
+#         else:
+#             label2trial[l].append(i)
+#     # print(label2trial)
+#
+#     brain_data_unique = np.zeros((len(brain_labels_unique), brain_data.shape[1]))
+#     for j, lab in enumerate(brain_labels_unique):
+#         if len(label2trial[lab]) == 1:
+#             brain_data_unique[j,:] = brain_data[label2trial[lab],:]
+#         else:
+#             brain_data_unique[j,:] = np.mean([brain_data[idx,:] for idx in label2trial[lab]])
+#     return brain_data_unique, brain_labels_unique
+
 def simulate_data(w0, w1, w2, l=100, c=200):
     A = np.random.rand(w0+w1+w2, l)
     D_X = np.random.rand(l, c)
