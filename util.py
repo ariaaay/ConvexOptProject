@@ -23,7 +23,7 @@ def simulate_data(w0, w1, w2, l=100, c=200):
     D_Y = np.random.rand(l, c)
     X = A[:(w0+w1), :] @ D_X
     Y = np.vstack((A[:w0, :], A[w0+w1:,:])) @ D_Y
-    return X, Y
+    return X, Y, A
 
 
 def extract_common_objs(brain_data, brain_labels, obj_vectors, obj_labels):
