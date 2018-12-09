@@ -39,7 +39,7 @@ def takeout_repeated_brain_trials(brain_data, brain_labels):
 #             brain_data_unique[j,:] = np.mean([brain_data[idx,:] for idx in label2trial[lab]])
 #     return brain_data_unique, brain_labels_unique
 
-def simulate_data(w0, w1, w2, l=100, c=200):
+def simulate_data(w0, w1, w2, l=100, c=200, return_D=False):
     numel = l*(w0+w1+w2)
     #choose 80% sparsity
     A = np.random.rand(1,numel)
@@ -52,7 +52,11 @@ def simulate_data(w0, w1, w2, l=100, c=200):
     D_Y = np.random.rand(l, c)
     X = A[:(w0+w1), :] @ D_X
     Y = np.vstack((A[:w0, :], A[w0+w1:,:])) @ D_Y
-    return X, Y, A[:(w0+w1),:]
+
+    if return_D:
+        return X, Y, A, D_X, D_Y
+    else:
+        return X, Y, A
 
 
 def extract_common_objs(brain_data, brain_labels, obj_vectors, obj_labels):
