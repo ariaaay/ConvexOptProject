@@ -2,9 +2,9 @@ import time
 import numpy as np
 from tqdm import tqdm
 import pickle
-import spams
+# import spams
 import sys
-from gensim.models import KeyedVectors
+# from gensim.models import KeyedVectors
 from sklearn.decomposition import DictionaryLearning
 from sklearn.cluster.bicluster import SpectralBiclustering
 import matplotlib.pyplot as plt
