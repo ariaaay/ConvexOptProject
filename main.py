@@ -134,6 +134,9 @@ def joint_optimize(X, Y, w, w1, fit_algo, transform_algo, K=100, lamb=0.1):
     ax2 = ax.twinx()
     ax2.plot(np.arange(t), loss_X_arr)
     plt.savefig("./figures/joint_{}_{}_{}.png".format(transform_algo, fit_algo, lamb))
+    np.save("./outputs/D_X_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), D_X)
+    np.save("./outputs/D_Y_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), D_Y)
+    np.save("./outputs/A_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), A)
 
     return D_X, D_Y, A
 
@@ -195,6 +198,10 @@ def main_optimize(X, Y, w, fit_algo, transform_algo, K=100, lamb=0.025):
     ax2 = ax.twinx()
     ax2.plot(np.arange(t), loss_X_arr)
     plt.savefig("./figures/{}_{}.png".format(transform_algo, fit_algo))
+    np.save("./outputs/D_X_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), D_X)
+    np.save("./outputs/D_Y_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), D_Y)
+    np.save("./outputs/A_X_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), A_X)
+    np.save("./outputs/A_Y_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), A_Y)
 
     return D_X, D_Y, A_Y, A_X
 
@@ -217,23 +224,27 @@ if __name__ == '__main__':
         obj_embedding_path = "./data/pix2vec_200.model"
 
 
-    # Brain data is provided as a single numpy array, labels as a pickled
-    # Python list
-    brain_data = np.load(brain_data_path)
-    brain_labels = pickle.load(open(brain_labels_path, 'rb'))
-    # Object embeddings are read from a gensim model file.
-    wv_model = KeyedVectors.load(obj_embedding_path, mmap='r')
-    obj_vectors = wv_model.vectors
-    obj_labels = list(wv_model.vocab)
-    brain_data_unique, brain_labels_unique = takeout_repeated_brain_trials(brain_data, brain_labels)
-    X, Y, w = extract_common_objs(brain_data_unique, brain_labels_unique, obj_vectors, obj_labels)
-    # print("Linear project residual is: " +str(linear_test(X, Y)))
-    # plot_rdm(X, Y, w)
-    w0, w1, w2 = 200, 100, 100
-    Xsim, Ysim, Asim, Dsimx, Dsimy = simulate_data(w0, w1, w2, return_D=True)
-    np.save("Xsim.npy", Xsim)
-    np.save("Ysim.npy", Ysim)
-    np.save("Asim.npy", Asim)
+
+    if sys.argv[1] == "simulation":
+        w0, w1, w2 = 200, 100, 100
+        Xsim, Ysim, Asim, Dsimx, Dsimy = simulate_data(w0, w1, w2, return_D=True)
+        np.save("Xsim.npy", Xsim)
+        np.save("Ysim.npy", Ysim)
+        np.save("Asim.npy", Asim)
+    else:
+        # Brain data is provided as a single numpy array, labels as a pickled
+        # Python list
+        brain_data = np.load(brain_data_path)
+        brain_labels = pickle.load(open(brain_labels_path, 'rb'))
+        # Object embeddings are read from a gensim model file.
+        wv_model = KeyedVectors.load(obj_embedding_path, mmap='r')
+        obj_vectors = wv_model.vectors
+        obj_labels = list(wv_model.vocab)
+        brain_data_unique, brain_labels_unique = takeout_repeated_brain_trials(brain_data, brain_labels)
+        X, Y, w = extract_common_objs(brain_data_unique, brain_labels_unique, obj_vectors, obj_labels)
+        # print("Linear project residual is: " +str(linear_test(X, Y)))
+        # plot_rdm(X, Y, w)
+
     # Ax = Asim[:w0+w1,:]
     # Ay = np.vstack((Asim[:w0, :], Asim[w0+w1:,:]))
     # sim_loss = eval(Xsim, Ax, Dsimx) + eval(Ysim, Ay, Dsimy)
