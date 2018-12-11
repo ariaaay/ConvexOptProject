@@ -223,9 +223,15 @@ if __name__ == '__main__':
         brain_labels_path = "./data/image_category.p"
         obj_embedding_path = "./data/pix2vec_200.model"
 
+    try:
+        if sys.argv[1] == "simulation":
+            simulation = True
+    except:
+        simulation = False
 
 
-    if sys.argv[1] == "simulation":
+
+    if simulation:
         w0, w1, w2 = 200, 100, 100
         Xsim, Ysim, Asim, Dsimx, Dsimy = simulate_data(w0, w1, w2, return_D=True)
         np.save("Xsim.npy", Xsim)
@@ -262,7 +268,7 @@ if __name__ == '__main__':
             for la in tqdm(lambs):
                 # D_X, D_Y, A_Y, A_X = main(X, Y, w)
                 print("testing with {} and {}".format(ft, tr))
-                if sys.argv[1] == "simulation":
+                if simulation:
                     D_X, D_Y, A_Y, A_X = main_optimize(Xsim, Ysim, w0, ft, tr, lamb=la)
                     D_X, D_Y, A = joint_optimize(Xsim, Ysim, w0, w1, ft, tr, lamb=la)
                 else:
