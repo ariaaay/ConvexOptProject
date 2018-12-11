@@ -272,7 +272,7 @@ if __name__ == '__main__':
                     D_X, D_Y, A_Y, A_X = main_optimize(Xsim, Ysim, w0, ft, tr, lamb=la)
                     D_X, D_Y, A = joint_optimize(Xsim, Ysim, w0, w1, ft, tr, lamb=la)
                 else:
-                    D_X, D_Y, A_Y, A_X = main_optimize(X, Y, w0, ft, tr, lamb=la)
-                    D_X, D_Y, A = joint_optimize(X, Y, w0, w1, ft, tr, lamb=la)
+                    D_X, D_Y, A_Y, A_X = main_optimize(X, Y, w, ft, tr, lamb=la)
+                    D_X, D_Y, A = joint_optimize(X, Y, w, w1, ft, tr, lamb=la)
 
 
