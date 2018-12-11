@@ -217,16 +217,16 @@ if __name__ == '__main__':
         obj_embedding_path = "./data/pix2vec_200.model"
 
 
-    # Brain data is provided as a single numpy array, labels as a pickled
-    # Python list
-    brain_data = np.load(brain_data_path)
-    brain_labels = pickle.load(open(brain_labels_path, 'rb'))
-    # Object embeddings are read from a gensim model file.
-    wv_model = KeyedVectors.load(obj_embedding_path, mmap='r')
-    obj_vectors = wv_model.vectors
-    obj_labels = list(wv_model.vocab)
-    brain_data_unique, brain_labels_unique = takeout_repeated_brain_trials(brain_data, brain_labels)
-    X, Y, w = extract_common_objs(brain_data_unique, brain_labels_unique, obj_vectors, obj_labels)
+    # # Brain data is provided as a single numpy array, labels as a pickled
+    # # Python list
+    # brain_data = np.load(brain_data_path)
+    # brain_labels = pickle.load(open(brain_labels_path, 'rb'))
+    # # Object embeddings are read from a gensim model file.
+    # wv_model = KeyedVectors.load(obj_embedding_path, mmap='r')
+    # obj_vectors = wv_model.vectors
+    # obj_labels = list(wv_model.vocab)
+    # brain_data_unique, brain_labels_unique = takeout_repeated_brain_trials(brain_data, brain_labels)
+    # X, Y, w = extract_common_objs(brain_data_unique, brain_labels_unique, obj_vectors, obj_labels)
     # print("Linear project residual is: " +str(linear_test(X, Y)))
     # plot_rdm(X, Y, w)
     w0, w1, w2 = 200, 100, 100
