@@ -4,7 +4,7 @@ from tqdm import tqdm
 import pickle
 # import spams
 import sys
-# from gensim.models import KeyedVectors
+from gensim.models import KeyedVectors
 from sklearn.decomposition import DictionaryLearning
 from sklearn.cluster.bicluster import SpectralBiclustering
 import matplotlib.pyplot as plt
@@ -208,25 +208,25 @@ def eval(X, A, D, lamb=0):
 
 if __name__ == '__main__':
     try:
-        brain_data_path = sys.argv[1]
-        brain_labels_path = sys.argv[2]
-        obj_embedding_path = sys.argv[3]
+        brain_data_path = sys.argv[2]
+        brain_labels_path = sys.argv[3]
+        obj_embedding_path = sys.argv[4]
     except IndexError:
         brain_data_path = "./data/S1_LOC_LH.npy"
         brain_labels_path = "./data/image_category.p"
         obj_embedding_path = "./data/pix2vec_200.model"
 
 
-    # # Brain data is provided as a single numpy array, labels as a pickled
-    # # Python list
-    # brain_data = np.load(brain_data_path)
-    # brain_labels = pickle.load(open(brain_labels_path, 'rb'))
-    # # Object embeddings are read from a gensim model file.
-    # wv_model = KeyedVectors.load(obj_embedding_path, mmap='r')
-    # obj_vectors = wv_model.vectors
-    # obj_labels = list(wv_model.vocab)
-    # brain_data_unique, brain_labels_unique = takeout_repeated_brain_trials(brain_data, brain_labels)
-    # X, Y, w = extract_common_objs(brain_data_unique, brain_labels_unique, obj_vectors, obj_labels)
+    # Brain data is provided as a single numpy array, labels as a pickled
+    # Python list
+    brain_data = np.load(brain_data_path)
+    brain_labels = pickle.load(open(brain_labels_path, 'rb'))
+    # Object embeddings are read from a gensim model file.
+    wv_model = KeyedVectors.load(obj_embedding_path, mmap='r')
+    obj_vectors = wv_model.vectors
+    obj_labels = list(wv_model.vocab)
+    brain_data_unique, brain_labels_unique = takeout_repeated_brain_trials(brain_data, brain_labels)
+    X, Y, w = extract_common_objs(brain_data_unique, brain_labels_unique, obj_vectors, obj_labels)
     # print("Linear project residual is: " +str(linear_test(X, Y)))
     # plot_rdm(X, Y, w)
     w0, w1, w2 = 200, 100, 100
@@ -246,13 +246,16 @@ if __name__ == '__main__':
     #
     # transform_algorithm = ['lasso_lars']
     # fit_algorithm = ['lars']
-
     for tr in tqdm(transform_algorithm):
         for ft in tqdm(fit_algorithm):
             for la in tqdm(lambs):
                 # D_X, D_Y, A_Y, A_X = main(X, Y, w)
                 print("testing with {} and {}".format(ft, tr))
-                D_X, D_Y, A_Y, A_X = main_optimize(Xsim, Ysim, w0, ft, tr, lamb=la)
+                if sys.argv[1] == "simulation":
+                    D_X, D_Y, A_Y, A_X = main_optimize(Xsim, Ysim, w0, ft, tr, lamb=la)
+                    D_X, D_Y, A = joint_optimize(Xsim, Ysim, w0, w1, ft, tr, lamb=la)
+                else:
+                    D_X, D_Y, A_Y, A_X = main_optimize(X, Y, w0, ft, tr, lamb=la)
+                    D_X, D_Y, A = joint_optimize(X, Y, w0, w1, ft, tr, lamb=la)
 
 
-    D_X, D_Y, A = joint_optimize(Xsim, Ysim, w0, w1, 'lars', 'lasso_lars')
