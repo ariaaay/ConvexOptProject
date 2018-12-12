@@ -78,7 +78,7 @@ def optimize_D(D, A, X):
     converged = False
     gamma = 1.1
     alpha = 0.1
-    thresh = 1e-3
+    thresh = 1e-5
     eta = 1
     currD = D
     xdiff = X - A @ D
@@ -104,9 +104,8 @@ def optimize_D(D, A, X):
                 eta = eta/gamma
             else:
                 break
-        converged = np.log(prevObj - currObj) <= np.log(thresh) + np.log(prevObj)
-        print("currObj is {}".format(currObj))
-    return D
+        converged = np.abs(prevObj - currObj) <= thresh
+    return currD
 
 
 def joint_GD_optimize(X, Y, w, w1, w2, transform_algo, K=100, lamb=0.1, sim=True):
@@ -129,7 +128,7 @@ def joint_GD_optimize(X, Y, w, w1, w2, transform_algo, K=100, lamb=0.1, sim=True
     loss_X_arr = []
     loss_Y_arr = []
     converged = False
-    tol = 1e-3
+    tol = 1e-10
     curr_obj = np.inf
     while not converged and t < 300:
         prev_obj = curr_obj
@@ -152,8 +151,10 @@ def joint_GD_optimize(X, Y, w, w1, w2, transform_algo, K=100, lamb=0.1, sim=True
         A[w + w1:, :] = A_Y
 
         loss_X = eval(X, A[:w + w1, :], D_X)
+        print(loss_X)
         loss_X_arr.append(loss_X)
         loss_Y = eval(Y, np.vstack((A[:w, :], A[w + w1:, :])), D_Y)
+        print(loss_Y)
         loss_Y_arr.append(loss_Y)
         if sim:
             np.save("./outputs/sim_joint_loss_X_{}_{}_GD.npy".format(transform_algo, lamb), loss_X_arr)
@@ -385,24 +386,22 @@ if __name__ == '__main__':
     transform_algorithm = ['lasso_lars', 'lasso_cd']
     fit_algorithm = ['lars', 'cd']
     lambs = np.logspace(-2, 1, 4)
-    #
-    # transform_algorithm = ['lasso_lars']
-    # fit_algorithm = ['lars']
-    for tr in tqdm(transform_algorithm):
-        for la in tqdm(lambs):
-            print("testing gradient descent with {} (lambda={})".format(tr, la))
-            _ = joint_GD_optimize(X, Y, w, w1, w2, tr, lamb=la, sim=False)
 
     # for tr in tqdm(transform_algorithm):
-    #     for ft in tqdm(fit_algorithm):
-    #         for la in tqdm(lambs):
-    #             # D_X, D_Y, A_Y, A_X = main(X, Y, w)
-    #             print("testing with {} and {}".format(ft, tr))
-    #             if simulation:
-    #                 # D_X, D_Y, A_Y, A_X = main_optimize(Xsim, Ysim, w0, ft, tr, lamb=la)
-    #                 _ = joint_optimize(Xsim, Ysim, w0, w1, w1, ft, tr, lamb=la)
-    #             else:
-    #                 # D_X, D_Y, A_Y, A_X = main_optimize(X, Y, w, ft, tr, lamb=la)
-    #                 _ = joint_optimize(X, Y, w, w1, w2, ft, tr, lamb=la, sim=False)
+    #     for la in tqdm(lambs):
+    #         print("testing gradient descent with {} (lambda={})".format(tr, la))
+    #         _ = joint_GD_optimize(X, Y, w, w1, w2, tr, lamb=la, sim=False)
+
+    for tr in tqdm(transform_algorithm):
+        for ft in tqdm(fit_algorithm):
+            for la in tqdm(lambs):
+                # D_X, D_Y, A_Y, A_X = main(X, Y, w)
+                print("testing with {} and {}".format(ft, tr))
+                if simulation:
+                    # D_X, D_Y, A_Y, A_X = main_optimize(Xsim, Ysim, w0, ft, tr, lamb=la)
+                    _ = joint_optimize(Xsim, Ysim, w0, w1, w1, ft, tr, lamb=la)
+                else:
+                    # D_X, D_Y, A_Y, A_X = main_optimize(X, Y, w, ft, tr, lamb=la)
+                    _ = joint_optimize(X, Y, w, w1, w2, ft, tr, lamb=la, sim=False)
 
 
