@@ -104,7 +104,7 @@ def optimize_D(D, A, X):
                 eta = eta/gamma
             else:
                 break
-        converged = np.log(prevObj - currObj) <= log(thresh) + log(prevObj)
+        converged = np.log(prevObj - currObj) <= np.log(thresh) + np.log(prevObj)
         print("currObj is {}".format(currObj))
     return D
 
