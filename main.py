@@ -73,7 +73,43 @@ def plot_rdm(X, Y, w):
 #     # Train a model XW = A using L2-regularized linear regression.
 #     # Use trained W to compute 2v2 accuracy on a holdout set.
 
-def joint_optimize(X, Y, w, w1, fit_algo, transform_algo, K=100, lamb=0.1):
+def optimize_D(D, A, X):
+    converged = False
+    gamma = 1.1
+    alpha = 0.1
+    thresh = 1e-3
+    eta = 1
+    currD = D
+    xdiff = X - A @ D
+    currObj = eval(X, A, D)
+    t = 0
+    while not converged:
+        t += 1
+        prevObj = currObj
+        prevD = currD
+        grad = -2 * At @ xdiff
+        while True:
+            currD = prevD - eta * grad
+            for j in range(D.shape[0]):
+                l2norm = np.sqrt(sum(currD[j,:]**2))
+                if l2norm > 1:
+                    currD[j,:] = currD[j,:]/l2norm
+
+            xdiff = X - A @ D
+            currObj = eval(X, A, D)
+            Ddiff = currD - prevD
+
+            if currObj > prevObj + alpha * eta * sum(sum(Ddiff * grad)):
+                eta = eta/gamma
+            else:
+                break
+    converged = np.log(prevObj - currObj) <= log(thresh) + log(prevObj)
+    print("currObj is {}".format(currObj))
+    return D
+
+
+
+def joint_optimize(X, Y, w, w1, w2, fit_algo, transform_algo, K=100, lamb=0.1, sim=True):
     model_X, D_Y = None, None
     params = {'n_components':K, 'alpha':lamb, 'max_iter': 100, 'n_jobs': -1, 'positive_code':True,
               'transform_algorithm':transform_algo, 'fit_algorithm':fit_algo, 'tol':1e-02}
@@ -96,6 +132,7 @@ def joint_optimize(X, Y, w, w1, fit_algo, transform_algo, K=100, lamb=0.1):
             model_joint = DictionaryLearning(code_init=A, dict_init = np.hstack((D_X, D_Y)), **params)
         
         model_X.fit(X)
+
         A_X = model_X.transform(X)
         D_X = model_X.components_
 
@@ -106,7 +143,7 @@ def joint_optimize(X, Y, w, w1, fit_algo, transform_algo, K=100, lamb=0.1):
         model_joint.fit(np.hstack((X[:w,:], Y[:w,:])))
         A_joint = model_joint.transform(np.hstack((X[:w,:], Y[:w,:])))
 
-        A = np.zeros((w+w1+w1, K)) #only in simulation data
+        A = np.zeros((w+w1+w2, K)) #only in simulation data
 
         A[:w,:] = A_joint
         A[w:w+w1,:] = A_X[w:,:]
@@ -118,9 +155,12 @@ def joint_optimize(X, Y, w, w1, fit_algo, transform_algo, K=100, lamb=0.1):
         loss_X_arr.append(loss_X)
         loss_Y = eval(Y, np.vstack((A[:w,:], A[w+w1:,:])), D_Y)
         loss_Y_arr.append(loss_Y)
-
-        np.save("./outputs/joint_loss_X_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), loss_X_arr)
-        np.save("./outputs/joint_loss_Y_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), loss_Y_arr)
+        if sim:
+            np.save("./outputs/joint_loss_X_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), loss_X_arr)
+            np.save("./outputs/joint_loss_Y_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), loss_Y_arr)
+        else:
+            np.save("./outputs/brain_joint_loss_X_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), loss_X_arr)
+            np.save("./outputs/brain_joint_loss_Y_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), loss_Y_arr)
 
         t+=1
         curr_obj = loss_X + loss_Y
@@ -133,10 +173,15 @@ def joint_optimize(X, Y, w, w1, fit_algo, transform_algo, K=100, lamb=0.1):
     ax.plot(np.arange(t), loss_Y_arr)
     ax2 = ax.twinx()
     ax2.plot(np.arange(t), loss_X_arr)
-    plt.savefig("./figures/joint_{}_{}_{}.png".format(transform_algo, fit_algo, lamb))
-    np.save("./outputs/D_X_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), D_X)
-    np.save("./outputs/D_Y_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), D_Y)
-    np.save("./outputs/A_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), A)
+    if sim:
+        # plt.savefig("./figures/joint_{}_{}_{}.png".format(transform_algo, fit_algo, lamb))
+        np.save("./outputs/joint_D_X_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), D_X)
+        np.save("./outputs/joint_D_Y_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), D_Y)
+        np.save("./outputs/joint_A_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), A)
+    else:
+        np.save("./outputs/brain_joint__D_X_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), D_X)
+        np.save("./outputs/brain_joint__D_Y_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), D_Y)
+        np.save("./outputs/brain_joint__A_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), A)
 
     return D_X, D_Y, A
 
@@ -144,6 +189,7 @@ def main_optimize(X, Y, w, fit_algo, transform_algo, K=100, lamb=0.025):
     model_X, D_Y = None, None
     params = {'n_components': K, 'alpha': lamb, 'max_iter': 500, 'n_jobs': -1, 'positive_code': True,
               'transform_algorithm': transform_algo, 'fit_algorithm': fit_algo, 'tol': 1e-02}
+
     t = 0
     loss_X_arr = []
     loss_Y_arr = []
@@ -248,6 +294,8 @@ if __name__ == '__main__':
         obj_labels = list(wv_model.vocab)
         brain_data_unique, brain_labels_unique = takeout_repeated_brain_trials(brain_data, brain_labels)
         X, Y, w = extract_common_objs(brain_data_unique, brain_labels_unique, obj_vectors, obj_labels)
+        w1 = X.shape[0] - w
+        w2 = Y.shape[0] - w
         # print("Linear project residual is: " +str(linear_test(X, Y)))
         # plot_rdm(X, Y, w)
 
@@ -257,7 +305,7 @@ if __name__ == '__main__':
 
     # plot_rdm(Xsim, Ysim, w)
 
-    transform_algorithm = ['lasso_lars', 'lasso_cd']
+    transform_algorithm = ['lasso_lars', 'lasso_cd', 'gd']
     fit_algorithm = ['lars', 'cd']
     lambs = np.logspace(-2, 1, 4)
     #
@@ -269,10 +317,10 @@ if __name__ == '__main__':
                 # D_X, D_Y, A_Y, A_X = main(X, Y, w)
                 print("testing with {} and {}".format(ft, tr))
                 if simulation:
-                    D_X, D_Y, A_Y, A_X = main_optimize(Xsim, Ysim, w0, ft, tr, lamb=la)
-                    D_X, D_Y, A = joint_optimize(Xsim, Ysim, w0, w1, ft, tr, lamb=la)
+                    # D_X, D_Y, A_Y, A_X = main_optimize(Xsim, Ysim, w0, ft, tr, lamb=la)
+                    D_X, D_Y, A = joint_optimize(Xsim, Ysim, w0, w1, w1, ft, tr, lamb=la)
                 else:
-                    D_X, D_Y, A_Y, A_X = main_optimize(X, Y, w, ft, tr, lamb=la)
-                    D_X, D_Y, A = joint_optimize(X, Y, w, w1, ft, tr, lamb=la)
+                    # D_X, D_Y, A_Y, A_X = main_optimize(X, Y, w, ft, tr, lamb=la)
+                    D_X, D_Y, A = joint_optimize(X, Y, w, w1, w2, ft, tr, lamb=la, sim=False)
 
 
