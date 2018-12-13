@@ -11,6 +11,8 @@ from sklearn.decomposition import SparseCoder
 from sklearn.cluster.bicluster import SpectralBiclustering
 import matplotlib.pyplot as plt
 from util import *
+from scipy.spatial.distance import pdist
+from scipy.spatial.distance import squareform
 
 # def test_2v2_accuracy(s):
 
@@ -20,24 +22,31 @@ def plot_rdm(X, Y, w):
     Yc = Y[:w, :]
     plt.figure()
 
-    Xcorr = np.corrcoef(Xc)
-    Ycorr = np.corrcoef(Yc)
+    dist_x = squareform(pdist(Xc, 'euclidean'))
+    upper_idx = np.triu_indices(dist_x.shape[0], k=1)
+    x_gamma = 1/(2*np.median(dist_x[upper_idx])**2)
+    dist_x = np.exp(-x_gamma*dist_x)
+
+    dist_y = squareform(pdist(Yc, 'euclidean'))
+    y_gamma = 1/(2*np.median(dist_y[upper_idx])**2)
+    dist_y = np.exp(-y_gamma*dist_y)
+
+    corr = np.corrcoef(dist_x[upper_idx], dist_y[upper_idx])[0,1]
 
     model = SpectralBiclustering(n_clusters=20, method='log', random_state=0)
-    model.fit(Ycorr)
-    fitX = Xcorr[np.argsort(model.row_labels_)]
+    model.fit(dist_x)
+    fitX = dist_x[np.argsort(model.row_labels_)]
     fitX = fitX[:, np.argsort(model.column_labels_)]
 
-    fitY = Ycorr[np.argsort(model.row_labels_)]
+    fitY = dist_y[np.argsort(model.row_labels_)]
     fitY = fitY[:, np.argsort(model.column_labels_)]
     plt.subplot(121)
     plt.imshow(fitX, cmap=plt.cm.Blues)
-    plt.title('Image Object Space')
     plt.colorbar()
     plt.subplot(122)
     plt.imshow(fitY, cmap=plt.cm.Blues)
-    plt.title('Brain Responses')
     plt.colorbar()
+    plt.title("RDM matrix, with RDF kernel, correlation: {:.4f}".format(corr))
     plt.show()
 
 def optimize_D(D, A, X):
@@ -82,6 +91,7 @@ def joint_GD_optimize(X, Y, w, w1, w2, transform_algo, K=100, lamb=0.1):
     params = {'transform_alpha': lamb, 'n_jobs': -1, 'positive_code': True, 'transform_algorithm': transform_algo}
     #initialized
     A = np.random.rand(w+w1+w2,K)
+    # print(A.shape)
     D_X = np.random.rand(K, X.shape[1])
     D_Y = np.random.rand(K, Y.shape[1])
 
@@ -307,7 +317,7 @@ else:
 
 
 if __name__ == '__main__':
-    brain_data_path = "./data/S1_LOC_LH.npy"
+    brain_data_path = "./data/S1_OPA_LH.npy"
     brain_labels_path = "./data/image_category.p"
     obj_embedding_path = "./data/pix2vec_200.model"
 
@@ -323,7 +333,7 @@ if __name__ == '__main__':
         np.save("Xsim.npy", X)
         np.save("Ysim.npy", Y)
         np.save("Asim.npy", Asim)
-        # plot_rdm(Xsim, Ysim, w)
+        # plot_rdm(X, Y, w0)
     else:
         # Brain data is provided as a single numpy array, labels as a pickled
         # Python list
@@ -337,7 +347,7 @@ if __name__ == '__main__':
         X, Y, w0 = extract_common_objs(brain_data_unique, brain_labels_unique, obj_vectors, obj_labels)
         w1 = X.shape[0] - w0
         w2 = Y.shape[0] - w0
-        # plot_rdm(X, Y, w)
+        # plot_rdm(X, Y, w0)
 
     transform_algorithm = ['lasso_lars', 'lasso_cd']
     fit_algorithm = ['lars', 'cd']
@@ -347,7 +357,7 @@ if __name__ == '__main__':
         for tr in tqdm(transform_algorithm):
             for la in tqdm(lambs):
                 print("Testing on {} data, with {}, using algorithm {} and lambda={}".format(datasrc, args.model, tr, la))
-                _ = joint_GD_optimize(X, Y, w0, w1, w1, tr, lamb=la)
+                _ = joint_GD_optimize(X, Y, w0, w1, w2, tr, lamb=la)
 
     else:
         for tr in tqdm(transform_algorithm):
@@ -358,6 +368,6 @@ if __name__ == '__main__':
                     if args.model == "alternate":
                         _ = main_optimize(X, Y, w0, ft, tr, lamb=la)
                     elif args.model == "joint":
-                        _ = joint_optimize(X, Y, w0, w1, w1, ft, tr, lamb=la)
+                        _ = joint_optimize(X, Y, w0, w1, w2, ft, tr, lamb=la)
 
 
