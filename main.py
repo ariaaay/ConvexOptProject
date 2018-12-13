@@ -296,6 +296,8 @@ args = parser.parse_args()
 
 if args.simulation:
     datasrc='sim'
+    if args.dim is not None:
+        datasrc = 'sim' + str(args.dim)
 else:
     datasrc='brain'
 
