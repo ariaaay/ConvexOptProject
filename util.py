@@ -57,7 +57,7 @@ def simulate_data(w0, w1, w2, l=100, c=200, return_D=False):
     if return_D:
         return X, Y, A, D_X, D_Y
     else:
-        return X, Y, Ax,Ay
+        return X, Y, Ax, Ay
 
 
 def extract_common_objs(brain_data, brain_labels, obj_vectors, obj_labels):
