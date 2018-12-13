@@ -45,19 +45,20 @@ def simulate_data(w0, w1, w2, l=100, c=200, return_D=False):
     #choose 80% sparsity
     A = np.random.rand(1,numel)
     idx = np.random.choice(range(numel),size=np.int(np.round(.8*numel)),replace=False)
-    #A = A.reshape(1,-1)
     A[0,idx] = 0
     A = A.reshape(w0+w1+w2, l)
 
     D_X = np.random.rand(l, c)
     D_Y = np.random.rand(l, c)
-    X = A[:(w0+w1), :] @ D_X
-    Y = np.vstack((A[:w0, :], A[w0+w1:,:])) @ D_Y
-
+    Ax = A[:(w0+w1), :]
+    X = Ax @ D_X
+    Ay = np.vstack((A[:w0, :], A[w0+w1:,:]))
+    Y = Ay @ D_Y
+    
     if return_D:
         return X, Y, A, D_X, D_Y
     else:
-        return X, Y, A
+        return X, Y, Ax, Ay
 
 
 def extract_common_objs(brain_data, brain_labels, obj_vectors, obj_labels):
