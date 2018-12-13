@@ -47,8 +47,8 @@ def optimize_D(D, A, X):
     thresh = 1e-5
     eta = 1
     currD = D
-    xdiff = X - A @ D
-    currObj = eval(X, A, D)
+    xdiff = X - A @ currD
+    currObj = eval(X, A, currD)
     t = 0
     while not converged:
         t += 1
@@ -57,18 +57,22 @@ def optimize_D(D, A, X):
         grad = -2 * A.T @ xdiff
         while True:
             currD = prevD - eta * grad
-            for j in range(D.shape[0]):
+            for j in range(currD.shape[0]):
                 l2norm = np.sqrt(sum(currD[j,:]**2))
                 if l2norm > 1:
                     currD[j,:] = currD[j,:]/l2norm
 
-            xdiff = X - A @ D
-            currObj = eval(X, A, D)
+            xdiff = X - A @ currD
+            currObj = eval(X, A, currD)
             Ddiff = currD - prevD
 
-            if currObj > prevObj + alpha * eta * sum(sum(Ddiff * grad)):
+            if currObj > prevObj + alpha * eta * np.sum(Ddiff * grad):
+                # print(currObj)
+                # print(prevObj)
+                # print(alpha * eta * np.sum(Ddiff * grad))
                 eta = eta/gamma
             else:
+                # print(eta)
                 break
         converged = np.abs(prevObj - currObj) <= thresh
     return currD
@@ -94,7 +98,7 @@ def joint_GD_optimize(X, Y, w, w1, w2, transform_algo, K=100, lamb=0.1):
     loss_X_arr = []
     loss_Y_arr = []
     converged = False
-    tol = 1e-10
+    tol = 1e-5
     curr_obj = np.inf
     while not converged and t < 300:
         prev_obj = curr_obj
@@ -117,10 +121,10 @@ def joint_GD_optimize(X, Y, w, w1, w2, transform_algo, K=100, lamb=0.1):
         A[w + w1:, :] = A_Y
 
         loss_X = eval(X, A[:w + w1, :], D_X)
-        print(loss_X)
+        # print(loss_X)
         loss_X_arr.append(loss_X)
         loss_Y = eval(Y, np.vstack((A[:w, :], A[w + w1:, :])), D_Y)
-        print(loss_Y)
+        # print(loss_Y)
         loss_Y_arr.append(loss_Y)
 
         np.save("./outputs/{}_joint_loss_X_{}_{}_GD.npy".format(datasrc, transform_algo, lamb), loss_X_arr)
