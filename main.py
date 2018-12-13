@@ -2,6 +2,7 @@ import time
 import numpy as np
 from tqdm import tqdm
 import pickle
+import argparse
 # import spams
 import sys
 from gensim.models import KeyedVectors
@@ -11,8 +12,8 @@ from sklearn.cluster.bicluster import SpectralBiclustering
 import matplotlib.pyplot as plt
 from util import *
 
-def test_2v2_accuracy():
-    pass
+# def test_2v2_accuracy(s):
+
 
 def plot_rdm(X, Y, w):
     Xc = X[:w, :]
@@ -38,41 +39,6 @@ def plot_rdm(X, Y, w):
     plt.title('Brain Responses')
     plt.colorbar()
     plt.show()
-
-
-
-
-
-# def main(X, Y, w, K=100):
-#     # TODO: Change the SPAMS settings to make sure it's being run with the 
-#     #       constraints and penalties that are described in the paper.
-#     return
-#     #alternate optimization
-#     X = np.asfortranarray(X.T)
-#     Y = np.asfortranarray(Y.T)
-
-#     params = {'K' : K, 'lambda1' : 0.025, 'numThreads' : 32,'iter' : 1}
-#     lasso_params = {'lambda1': 0.025, 'numThreads' : 32}
-
-
-#     D_X, model_X = spams.trainDL(X, return_model=True, batch=True, **params)
-#     # print(D_X.shape)
-#     # print(model_X['A'].shape)
-#     print(model_X['B'].shape)
-    
-#     alpha = spams.lasso(X, D=D_X, **lasso_params)
-#     print(alpha.shape)
-#     reconstruction_X = D_X * alpha
-#     xd = X - reconstruction_X
-#     loss_X = np.mean(0.5 * (xd * xd).sum(axis=0) + params['lambda1'] * np.abs(alpha).sum(axis=0))
-#     print('Loss of X: %f' % loss_X)
-
-#     # D_Y, model_Y = spams.trainDL(X, return_model=True, **params)
-
-#     # Convert alpha back to dense.
-#     alpha = alpha.toarray()
-#     # Train a model XW = A using L2-regularized linear regression.
-#     # Use trained W to compute 2v2 accuracy on a holdout set.
 
 def optimize_D(D, A, X):
     converged = False
@@ -108,7 +74,7 @@ def optimize_D(D, A, X):
     return currD
 
 
-def joint_GD_optimize(X, Y, w, w1, w2, transform_algo, K=100, lamb=0.1, sim=True):
+def joint_GD_optimize(X, Y, w, w1, w2, transform_algo, K=100, lamb=0.1):
     params = {'transform_alpha': lamb, 'n_jobs': -1, 'positive_code': True, 'transform_algorithm': transform_algo}
     #initialized
     A = np.random.rand(w+w1+w2,K)
@@ -156,12 +122,9 @@ def joint_GD_optimize(X, Y, w, w1, w2, transform_algo, K=100, lamb=0.1, sim=True
         loss_Y = eval(Y, np.vstack((A[:w, :], A[w + w1:, :])), D_Y)
         print(loss_Y)
         loss_Y_arr.append(loss_Y)
-        if sim:
-            np.save("./outputs/sim_joint_loss_X_{}_{}_GD.npy".format(transform_algo, lamb), loss_X_arr)
-            np.save("./outputs/sim_joint_loss_Y_{}_{}_GD.npy".format(transform_algo, lamb), loss_Y_arr)
-        else:
-            np.save("./outputs/brain_joint_loss_X_{}_{}_GD.npy".format(transform_algo, lamb), loss_X_arr)
-            np.save("./outputs/brain_joint_loss_Y_{}_{}_GD.npy".format(transform_algo, lamb), loss_Y_arr)
+
+        np.save("./outputs/{}_joint_loss_X_{}_{}_GD.npy".format(datasrc, transform_algo, lamb), loss_X_arr)
+        np.save("./outputs/{}_joint_loss_Y_{}_{}_GD.npy".format(datasrc, transform_algo, lamb), loss_Y_arr)
 
         t += 1
         curr_obj = loss_X + loss_Y
@@ -173,21 +136,16 @@ def joint_GD_optimize(X, Y, w, w1, w2, transform_algo, K=100, lamb=0.1, sim=True
     ax.plot(np.arange(t), loss_Y_arr)
     ax2 = ax.twinx()
     ax2.plot(np.arange(t), loss_X_arr)
-    if sim:
-        # plt.savefig("./figures/joint_{}_{}_{}.png".format(transform_algo, fit_algo, lamb))
-        np.save("./outputs/joint_D_X_{}_{}_GD.npy".format(transform_algo, lamb), D_X)
-        np.save("./outputs/joint_D_Y_{}_{}_GD.npy".format(transform_algo, lamb), D_Y)
-        np.save("./outputs/joint_A_{}_{}_GD.npy".format(transform_algo, lamb), A)
-    else:
-        np.save("./outputs/brain_joint__D_X_{}_{}_GD.npy".format(transform_algo, lamb), D_X)
-        np.save("./outputs/brain_joint__D_Y_{}_{}_GD.npy".format(transform_algo, lamb), D_Y)
-        np.save("./outputs/brain_joint__A_{}_{}_GD.npy".format(transform_algo, lamb), A)
+
+    np.save("./outputs/{}_joint_D_X_{}_{}_GD.npy".format(datasrc, transform_algo, lamb), D_X)
+    np.save("./outputs/{}_joint_D_Y_{}_{}_GD.npy".format(datasrc, transform_algo, lamb), D_Y)
+    np.save("./outputs/{}_joint_A_{}_{}_GD.npy".format(datasrc, transform_algo, lamb), A)
 
     return D_X, D_Y, A
 
 
 
-def joint_optimize(X, Y, w, w1, w2, fit_algo, transform_algo, K=100, lamb=0.1, sim=True):
+def joint_optimize(X, Y, w, w1, w2, fit_algo, transform_algo, K=100, lamb=0.1):
     model_X, D_Y = None, None
     params = {'n_components':K, 'alpha':lamb, 'max_iter': 100, 'n_jobs': -1, 'positive_code':True,
               'transform_algorithm':transform_algo, 'fit_algorithm':fit_algo, 'tol':1e-02}
@@ -233,12 +191,10 @@ def joint_optimize(X, Y, w, w1, w2, fit_algo, transform_algo, K=100, lamb=0.1, s
         loss_X_arr.append(loss_X)
         loss_Y = eval(Y, np.vstack((A[:w,:], A[w+w1:,:])), D_Y)
         loss_Y_arr.append(loss_Y)
-        if sim:
-            np.save("./outputs/joint_loss_X_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), loss_X_arr)
-            np.save("./outputs/joint_loss_Y_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), loss_Y_arr)
-        else:
-            np.save("./outputs/brain_joint_loss_X_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), loss_X_arr)
-            np.save("./outputs/brain_joint_loss_Y_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), loss_Y_arr)
+
+        np.save("./outputs/{}_joint_loss_X_{}_{}_{}.npy".format(datasrc, transform_algo, fit_algo, lamb), loss_X_arr)
+        np.save("./outputs/{}_joint_loss_Y_{}_{}_{}.npy".format(datasrc, transform_algo, fit_algo, lamb), loss_Y_arr)
+
 
         t+=1
         curr_obj = loss_X + loss_Y
@@ -251,15 +207,11 @@ def joint_optimize(X, Y, w, w1, w2, fit_algo, transform_algo, K=100, lamb=0.1, s
     ax.plot(np.arange(t), loss_Y_arr)
     ax2 = ax.twinx()
     ax2.plot(np.arange(t), loss_X_arr)
-    if sim:
-        # plt.savefig("./figures/joint_{}_{}_{}.png".format(transform_algo, fit_algo, lamb))
-        np.save("./outputs/joint_D_X_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), D_X)
-        np.save("./outputs/joint_D_Y_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), D_Y)
-        np.save("./outputs/joint_A_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), A)
-    else:
-        np.save("./outputs/brain_joint__D_X_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), D_X)
-        np.save("./outputs/brain_joint__D_Y_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), D_Y)
-        np.save("./outputs/brain_joint__A_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), A)
+
+    # plt.savefig("./figures/joint_{}_{}_{}.png".format(transform_algo, fit_algo, lamb))
+    np.save("./outputs/{}_joint_D_X_{}_{}_{}.npy".format(datasrc, transform_algo, fit_algo, lamb), D_X)
+    np.save("./outputs/{}_joint_D_Y_{}_{}_{}.npy".format(datasrc, transform_algo, fit_algo, lamb), D_Y)
+    np.save("./outputs/{}_joint_A_{}_{}_{}.npy".format(datasrc, transform_algo, fit_algo, lamb), A)
 
     return D_X, D_Y, A
 
@@ -309,8 +261,8 @@ def main_optimize(X, Y, w, fit_algo, transform_algo, K=100, lamb=0.025):
         t += 1
         curr_obj = loss_X + loss_Y
         converged = np.abs(prev_obj - curr_obj) <= tol
-        np.save("./outputs/loss_X_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), loss_X_arr)
-        np.save("./outputs/loss_Y_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), loss_Y_arr)
+        np.save("./outputs/{}_loss_X_{}_{}_{}.npy".format(datasrc, transform_algo, fit_algo, lamb), loss_X_arr)
+        np.save("./outputs/{}_loss_Y_{}_{}_{}.npy".format(datasrc, transform_algo, fit_algo, lamb), loss_Y_arr)
 
     # print(loss_X_arr)
     # print(loss_Y_arr)
@@ -322,10 +274,10 @@ def main_optimize(X, Y, w, fit_algo, transform_algo, K=100, lamb=0.025):
     ax2 = ax.twinx()
     ax2.plot(np.arange(t), loss_X_arr)
     plt.savefig("./figures/{}_{}.png".format(transform_algo, fit_algo))
-    np.save("./outputs/D_X_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), D_X)
-    np.save("./outputs/D_Y_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), D_Y)
-    np.save("./outputs/A_X_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), A_X)
-    np.save("./outputs/A_Y_{}_{}_{}.npy".format(transform_algo, fit_algo, lamb), A_Y)
+    np.save("./outputs/{}_D_X_{}_{}_{}.npy".format(datasrc, transform_algo, fit_algo, lamb), D_X)
+    np.save("./outputs/{}_D_Y_{}_{}_{}.npy".format(datasrc, transform_algo, fit_algo, lamb), D_Y)
+    np.save("./outputs/{}_A_X_{}_{}_{}.npy".format(datasrc, transform_algo, fit_algo, lamb), A_X)
+    np.save("./outputs/{}_A_Y_{}_{}_{}.npy".format(datasrc, transform_algo, fit_algo, lamb), A_Y)
 
     return D_X, D_Y, A_Y, A_X
 
@@ -336,31 +288,29 @@ def eval(X, A, D, lamb=0):
     loss = np.mean((diff**2).sum(axis=1) + lamb * np.abs(A).sum(axis=1))
     return loss
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-s", "--simulation", help="Run with simulation data", action='store_true')
+parser.add_argument("--model", help="specify which model to run (Joint, Alternate, or Joint GD", type=str)
+args = parser.parse_args()
+
+if args.simulation:
+    datasrc='sim'
+else:
+    datasrc='brain'
+
 
 if __name__ == '__main__':
-    try:
-        brain_data_path = sys.argv[2]
-        brain_labels_path = sys.argv[3]
-        obj_embedding_path = sys.argv[4]
-    except IndexError:
-        brain_data_path = "./data/S1_LOC_LH.npy"
-        brain_labels_path = "./data/image_category.p"
-        obj_embedding_path = "./data/pix2vec_200.model"
+    brain_data_path = "./data/S1_LOC_LH.npy"
+    brain_labels_path = "./data/image_category.p"
+    obj_embedding_path = "./data/pix2vec_200.model"
 
-    try:
-        if sys.argv[1] == "simulation":
-            simulation = True
-    except:
-        simulation = False
-
-
-
-    if simulation:
+    if args.simulation:
         w0, w1, w2 = 200, 100, 100
-        Xsim, Ysim, Asim, Dsimx, Dsimy = simulate_data(w0, w1, w2, return_D=True)
-        np.save("Xsim.npy", Xsim)
-        np.save("Ysim.npy", Ysim)
+        X, Y, Asim, Dsimx, Dsimy = simulate_data(w0, w1, w2, return_D=True)
+        np.save("Xsim.npy", X)
+        np.save("Ysim.npy", Y)
         np.save("Asim.npy", Asim)
+        # plot_rdm(Xsim, Ysim, w)
     else:
         # Brain data is provided as a single numpy array, labels as a pickled
         # Python list
@@ -371,37 +321,30 @@ if __name__ == '__main__':
         obj_vectors = wv_model.vectors
         obj_labels = list(wv_model.vocab)
         brain_data_unique, brain_labels_unique = takeout_repeated_brain_trials(brain_data, brain_labels)
-        X, Y, w = extract_common_objs(brain_data_unique, brain_labels_unique, obj_vectors, obj_labels)
-        w1 = X.shape[0] - w
-        w2 = Y.shape[0] - w
-        # print("Linear project residual is: " +str(linear_test(X, Y)))
+        X, Y, w0 = extract_common_objs(brain_data_unique, brain_labels_unique, obj_vectors, obj_labels)
+        w1 = X.shape[0] - w0
+        w2 = Y.shape[0] - w0
         # plot_rdm(X, Y, w)
-
-    # Ax = Asim[:w0+w1,:]
-    # Ay = np.vstack((Asim[:w0, :], Asim[w0+w1:,:]))
-    # sim_loss = eval(Xsim, Ax, Dsimx) + eval(Ysim, Ay, Dsimy)
-
-    # plot_rdm(Xsim, Ysim, w)
 
     transform_algorithm = ['lasso_lars', 'lasso_cd']
     fit_algorithm = ['lars', 'cd']
     lambs = np.logspace(-2, 1, 4)
 
-    # for tr in tqdm(transform_algorithm):
-    #     for la in tqdm(lambs):
-    #         print("testing gradient descent with {} (lambda={})".format(tr, la))
-    #         _ = joint_GD_optimize(X, Y, w, w1, w2, tr, lamb=la, sim=False)
-
-    for tr in tqdm(transform_algorithm):
-        for ft in tqdm(fit_algorithm):
+    if args.model == 'joint_GD':
+        for tr in tqdm(transform_algorithm):
             for la in tqdm(lambs):
-                # D_X, D_Y, A_Y, A_X = main(X, Y, w)
-                print("testing with {} and {}".format(ft, tr))
-                if simulation:
-                    # D_X, D_Y, A_Y, A_X = main_optimize(Xsim, Ysim, w0, ft, tr, lamb=la)
-                    _ = joint_optimize(Xsim, Ysim, w0, w1, w1, ft, tr, lamb=la)
-                else:
-                    # D_X, D_Y, A_Y, A_X = main_optimize(X, Y, w, ft, tr, lamb=la)
-                    _ = joint_optimize(X, Y, w, w1, w2, ft, tr, lamb=la, sim=False)
+                print("Testing on {} data, with {}, using algorithm {} and lambda={}".format(datasrc, args.model, tr, la))
+                _ = joint_GD_optimize(X, Y, w0, w1, w1, tr, lamb=la)
+
+    else:
+        for tr in tqdm(transform_algorithm):
+            for ft in tqdm(fit_algorithm):
+                for la in tqdm(lambs):
+                    # D_X, D_Y, A_Y, A_X = main_optimize(X, Y, w)
+                    print("Testing on {} data, with {} optimization, using algorithm {} and {} (lambda={})".format(datasrc, args.model, tr, ft, la))
+                    if args.model == "alternate":
+                        _ = main_optimize(X, Y, w0, ft, tr, lamb=la)
+                    elif args.model == "joint":
+                        _ = joint_optimize(X, Y, w0, w1, w1, ft, tr, lamb=la)
 
 
