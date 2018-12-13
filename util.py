@@ -31,7 +31,7 @@ def takeout_repeated_brain_trials(brain_data, brain_labels):
 #             label2trial[l].append(i)
 #     # print(label2trial)
 #
-#     brain_data_unique = np.zeros((len(brain_labels_unique), brain_data.shape[1]))
+#     brain_data_unique = np.zeros((len(brain_Xlabels_unique), brain_data.shape[1]))
 #     for j, lab in enumerate(brain_labels_unique):
 #         if len(label2trial[lab]) == 1:
 #             brain_data_unique[j,:] = brain_data[label2trial[lab],:]
