@@ -1,4 +1,5 @@
 import numpy as np
+np.random.seed(42)
 
 def takeout_repeated_brain_trials(brain_data, brain_labels):
     """
