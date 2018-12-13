@@ -291,6 +291,7 @@ def eval(X, A, D, lamb=0):
 parser = argparse.ArgumentParser()
 parser.add_argument("-s", "--simulation", help="Run with simulation data", action='store_true')
 parser.add_argument("--model", help="specify which model to run (Joint, Alternate, or Joint GD", type=str)
+parser.add_argument("--dim", help="specify dimension of simulation data", type=int)
 args = parser.parse_args()
 
 if args.simulation:
@@ -305,7 +306,13 @@ if __name__ == '__main__':
     obj_embedding_path = "./data/pix2vec_200.model"
 
     if args.simulation:
-        w0, w1, w2 = 200, 100, 100
+        if args.dim is None:
+            w0, w1, w2 = 200, 100, 100
+        else:
+            w0 = args.dim
+            w1, w2 = int(w0/2), int(w0/2)
+
+
         X, Y, Asim, Dsimx, Dsimy = simulate_data(w0, w1, w2, return_D=True)
         np.save("Xsim.npy", X)
         np.save("Ysim.npy", Y)
