@@ -11,10 +11,49 @@ from sklearn.decomposition import SparseCoder
 from sklearn.cluster.bicluster import SpectralBiclustering
 import matplotlib.pyplot as plt
 from util import *
+from ksvd_main import ksvd_dictupdate
 from scipy.spatial.distance import pdist
 from scipy.spatial.distance import squareform
+from sklearn.linear_model import RidgeCV
+from scipy.spatial.distance import cdist
 
-# def test_2v2_accuracy(s):
+def projection_matrix(X, A):
+    indexes = X.shape[0]
+    tr_prop = int(0.8*len(indexes))
+    np.random.shuffle(indexes)
+
+    tr_idx = indexes[:tr_prop]
+    ts_idx = indexes[tr_prop:]
+
+    X_tr = X[tr_idx,:]
+    A_tr = A[tr_idx,:]
+    X_ts = X[ts_idx,:]
+    A_ts = A[ts_idx,:]
+
+    clf = RidgeCV(alphas=[1e-3, 1e-2, 1e-1, 1]).fit(X_tr, A_tr)
+    Apred = clf.pred(X_ts)
+    return Apred, Ats
+
+
+def two_vs_two_test(Apred, A):
+    correct = 0
+    indexes = Apred.shape[0]
+    for i in range(Apred.shape[0]):
+        t1, t2 = np.random.choice(indexes, 2)
+        ap1, ap2 = Apred[t1,:], Apred[t2,:]
+        a1, a2 = A[t1,:], A[t2,:]
+
+        d1 = cdist(a1, ap1, 'seuclidean') + cdist(a2, ap2, 'seuclidean')
+        d2 = cdist(a1, ap2, 'seuclidean') + cdist(a2, ap1, 'seuclidean')
+
+        if d1>d2:
+            correct += 1
+    acc = correct /len(indexes)
+    return acc
+
+
+def
+
 
 
 def plot_rdm(X, Y, w):
@@ -85,6 +124,76 @@ def optimize_D(D, A, X):
                 break
         converged = np.abs(prevObj - currObj) <= thresh
     return currD
+
+def joint_GD_ksvd(X, Y, w, w1, w2, transform_algo, K=100, lamb=0.1):
+    params = {'transform_alpha': lamb, 'n_jobs': -1, 'positive_code': True, 'transform_algorithm': transform_algo}
+    # initialized
+    A = np.random.rand(w + w1 + w2, K)
+    # print(A.shape)
+    D_X = np.random.rand(K, X.shape[1])
+    D_Y = np.random.rand(K, Y.shape[1])
+
+    # normalize
+    A = A / (np.sqrt((A ** 2).sum(axis=1, keepdims=True)))
+
+    for j in range(D_X.shape[0]):
+        dx_norm = np.sqrt(np.sum(D_X[j, :] ** 2))
+        D_X[j, :] = D_X[j, :] / dx_norm
+        dy_norm = np.sqrt(np.sum(D_Y[j, :] ** 2))
+        D_Y[j, :] = D_Y[j, :] / dy_norm
+
+    t = 0
+    loss_X_arr = []
+    loss_Y_arr = []
+    converged = False
+    tol = 1e-5
+    curr_obj = np.inf
+    while not converged and t < 300:
+        prev_obj = curr_obj
+
+        A_X, D_X = ksvd_dictupdate(X, A[:w + w1, :], D_X, K)
+        A_Y, D_Y = ksvd_dictupdate(Y, np.vstack((A[:w, :], A[w + w1:, :])), D_Y, K)
+
+        coder_joint = SparseCoder(np.hstack((D_X, D_Y)), **params)
+        A_joint = coder_joint.fit_transform(np.hstack((X[:w, :], Y[:w, :])))
+
+        coder_X = SparseCoder(D_X, **params)
+        A_X = coder_X.fit_transform(X[w:])
+
+        coder_Y = SparseCoder(D_Y, **params)
+        A_Y = coder_Y.fit_transform(Y[w:])
+
+        A = np.zeros((w + w1 + w2, K))
+        A[:w, :] = A_joint
+        A[w:w + w1, :] = A_X
+        A[w + w1:, :] = A_Y
+
+        loss_X = eval(X, A[:w + w1, :], D_X)
+        # print(loss_X)
+        loss_X_arr.append(loss_X)
+        loss_Y = eval(Y, np.vstack((A[:w, :], A[w + w1:, :])), D_Y)
+        # print(loss_Y)
+        loss_Y_arr.append(loss_Y)
+
+        np.save("./outputs/{}_joint_loss_X_{}_{}_ksvd.npy".format(datasrc, transform_algo, lamb), loss_X_arr)
+        np.save("./outputs/{}_joint_loss_Y_{}_{}_ksvd.npy".format(datasrc, transform_algo, lamb), loss_Y_arr)
+
+        t += 1
+        curr_obj = loss_X + loss_Y
+        print(curr_obj)
+        converged = np.abs(prev_obj - curr_obj) <= tol
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(np.arange(t), loss_Y_arr)
+    ax2 = ax.twinx()
+    ax2.plot(np.arange(t), loss_X_arr)
+
+    np.save("./outputs/{}_joint_D_X_{}_{}_ksvd.npy".format(datasrc, transform_algo, lamb), D_X)
+    np.save("./outputs/{}_joint_D_Y_{}_{}_ksvd.npy".format(datasrc, transform_algo, lamb), D_Y)
+    np.save("./outputs/{}_joint_A_{}_{}_ksvd.npy".format(datasrc, transform_algo, lamb), A)
+
+    return D_X, D_Y, A
 
 
 def joint_GD_optimize(X, Y, w, w1, w2, transform_algo, K=100, lamb=0.1):
@@ -358,6 +467,12 @@ if __name__ == '__main__':
             for la in tqdm(lambs):
                 print("Testing on {} data, with {}, using algorithm {} and lambda={}".format(datasrc, args.model, tr, la))
                 _ = joint_GD_optimize(X, Y, w0, w1, w2, tr, lamb=la)
+
+    elif args.model == 'joint_ksvd':
+        for tr in tqdm(transform_algorithm):
+            for la in tqdm(lambs):
+                print("Testing on {} data, with {}, using algorithm {} and lambda={}".format(datasrc, args.model, tr, la))
+                _ = joint_GD_ksvd(X, Y, w0, w1, w2, tr, lamb=la)
 
     else:
         for tr in tqdm(transform_algorithm):
